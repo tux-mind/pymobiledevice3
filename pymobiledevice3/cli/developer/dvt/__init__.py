@@ -347,10 +347,11 @@ def xcuitest(
     s = XCUITestService(service_provider)
     consumer = s.start(bundle_id, test_runner_env=dict(var.split("=", 1) for var in env or ()))
     if output_log is not None:
+        out = open(output_log, "w")  # noqa: SIM115
 
         class MyListener(XCUITestListener):
             def logDebugMessage_(self, args):
-                output_log.write_text(args[0].value)
+                out.write(args[0].value)
 
         consumer.set_listener(MyListener(consumer.main_dvt, consumer.main_chan, consumer.xctest_config))
     t = threading.Thread(target=consumer.consume, name="XCUITestConsumer", daemon=True)
@@ -360,6 +361,8 @@ def xcuitest(
         logger.warning("consumer thread timed out, exiting")
         consumer.stop()
         t.join(1)
+    if output_log is not None:
+        out.close()
 
 
 @cli.command("trace-codes")
