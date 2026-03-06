@@ -20,8 +20,8 @@ async def test_ls(service_provider) -> None:
     """
     Test listing a directory.
     """
-    async with DvtProvider(service_provider) as dvt:
-        ls = set(await DeviceInfo(dvt).ls("/"))
+    async with DvtProvider(service_provider) as dvt, DeviceInfo(dvt) as device_info:
+        ls = set(await device_info.ls("/"))
     assert {"usr", "bin", "etc", "var", "private", "Applications", "Developer"} <= ls
 
 
@@ -30,9 +30,9 @@ async def test_ls_failure(service_provider) -> None:
     """
     Test listing a directory.
     """
-    async with DvtProvider(service_provider) as dvt:
+    async with DvtProvider(service_provider) as dvt, DeviceInfo(dvt) as device_info:
         with pytest.raises(DvtDirListError):
-            await DeviceInfo(dvt).ls("Directory that does not exist")
+            await device_info.ls("Directory that does not exist")
 
 
 @pytest.mark.asyncio
@@ -40,8 +40,8 @@ async def test_proclist(service_provider) -> None:
     """
     Test listing processes.
     """
-    async with DvtProvider(service_provider) as dvt:
-        lockdownd = await get_process_data(DeviceInfo(dvt), "lockdownd")
+    async with DvtProvider(service_provider) as dvt, DeviceInfo(dvt) as device_info:
+        lockdownd = await get_process_data(device_info, "lockdownd")
     assert lockdownd["realAppName"] == "/usr/libexec/lockdownd"
     assert not lockdownd["isApplication"]
 
@@ -63,8 +63,8 @@ async def test_memlimitoff(dvt: DvtSecureSocketProxyService, service_provider) -
     """
     Test disabling memory limit.
     """
-    async with DvtProvider(service_provider) as dvt_provider:
-        process = await get_process_data(DeviceInfo(dvt_provider), "SpringBoard")
+    async with DvtProvider(service_provider) as dvt_provider, DeviceInfo(dvt_provider) as device_info:
+        process = await get_process_data(device_info, "SpringBoard")
     await ProcessControl(dvt).disable_memory_limit_for_pid(process["pid"])
 
 
@@ -73,13 +73,13 @@ async def test_kill(dvt: DvtSecureSocketProxyService, service_provider) -> None:
     """
     Test killing a process.
     """
-    async with DvtProvider(service_provider) as dvt_provider:
-        aggregated = await get_process_data(DeviceInfo(dvt_provider), "SpringBoard")
+    async with DvtProvider(service_provider) as dvt_provider, DeviceInfo(dvt_provider) as device_info:
+        aggregated = await get_process_data(device_info, "SpringBoard")
     await ProcessControl(dvt).kill(aggregated["pid"])
     # give the os some time to start the process again
     await asyncio.sleep(3)
-    async with DvtProvider(service_provider) as dvt_provider:
-        aggregated_after_kill = await get_process_data(DeviceInfo(dvt_provider), "SpringBoard")
+    async with DvtProvider(service_provider) as dvt_provider, DeviceInfo(dvt_provider) as device_info:
+        aggregated_after_kill = await get_process_data(device_info, "SpringBoard")
     if "startDate" in aggregated:
         assert aggregated["startDate"] < aggregated_after_kill["startDate"]
 
@@ -91,8 +91,8 @@ async def test_launch(dvt: DvtSecureSocketProxyService, service_provider) -> Non
     """
     pid = await ProcessControl(dvt).launch("com.apple.mobilesafari")
     assert pid
-    async with DvtProvider(service_provider) as dvt_provider:
-        processes = await DeviceInfo(dvt_provider).proclist()
+    async with DvtProvider(service_provider) as dvt_provider, DeviceInfo(dvt_provider) as device_info:
+        processes = await device_info.proclist()
     for process in processes:
         if pid == process["pid"]:
             assert process["name"] == "MobileSafari"
@@ -103,9 +103,9 @@ async def test_system_information(service_provider) -> None:
     """
     Test getting system information.
     """
-    async with DvtProvider(service_provider) as dvt:
+    async with DvtProvider(service_provider) as dvt, DeviceInfo(dvt) as device_info:
         try:
-            system_info = await DeviceInfo(dvt).system_information()
+            system_info = await device_info.system_information()
         except UnrecognizedSelectorError:
             pytest.skip("device doesn't support this method")
     assert "_deviceDescription" in system_info and system_info["_deviceDescription"].startswith("Build Version")
@@ -116,8 +116,8 @@ async def test_hardware_information(service_provider) -> None:
     """
     Test getting hardware information.
     """
-    async with DvtProvider(service_provider) as dvt:
-        hardware_info = await DeviceInfo(dvt).hardware_information()
+    async with DvtProvider(service_provider) as dvt, DeviceInfo(dvt) as device_info:
+        hardware_info = await device_info.hardware_information()
     assert hardware_info["numberOfCpus"] > 0
 
 
@@ -126,6 +126,6 @@ async def test_network_information(service_provider) -> None:
     """
     Test getting network information.
     """
-    async with DvtProvider(service_provider) as dvt:
-        network_info = await DeviceInfo(dvt).network_information()
+    async with DvtProvider(service_provider) as dvt, DeviceInfo(dvt) as device_info:
+        network_info = await device_info.network_information()
     assert network_info["lo0"] == "Loopback"

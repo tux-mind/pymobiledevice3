@@ -59,10 +59,11 @@ cli.add_typer(simulate_location.cli)
 async def proclist(service_provider: ServiceProviderDep) -> None:
     """Show processes (with start times) via DVT."""
     async with DvtProvider(service_provider) as dvt:
-        processes = await DeviceInfo(dvt).proclist()
-        for process in processes:
-            if "startDate" in process:
-                process["startDate"] = str(process["startDate"])
+        async with DeviceInfo(dvt) as device_info:
+            processes = await device_info.proclist()
+            for process in processes:
+                if "startDate" in process:
+                    process["startDate"] = str(process["startDate"])
 
         print_json(processes)
 
@@ -71,8 +72,8 @@ async def proclist(service_provider: ServiceProviderDep) -> None:
 @async_command
 async def is_running_pid(service_provider: ServiceProviderDep, pid: int) -> None:
     """Check if a PID is currently running."""
-    async with DvtProvider(service_provider) as dvt:
-        print_json(await DeviceInfo(dvt).is_running_pid(pid))
+    async with DvtProvider(service_provider) as dvt, DeviceInfo(dvt) as device_info:
+        print_json(await device_info.is_running_pid(pid))
 
 
 @cli.command("memlimitoff")
@@ -214,8 +215,8 @@ async def pkill(
     async with (
         DvtProvider(service_provider) as dvt_provider,
         DvtSecureSocketProxyService(lockdown=service_provider) as dvt,
+        DeviceInfo(dvt_provider) as device_info,
     ):
-        device_info = DeviceInfo(dvt_provider)
         process_control = ProcessControl(dvt)
 
         for expression in expressions:
@@ -301,17 +302,15 @@ async def ls(
     ] = False,
 ) -> None:
     """List directory"""
-    async with DvtProvider(service_provider) as dvt:
-        channel = await dvt.dtx.open_channel(DeviceInfo.IDENTIFIER)
-        await show_dirlist(channel, path, recursive=recursive)
+    async with DvtProvider(service_provider) as dvt, DeviceInfo(dvt) as device_info:
+        await show_dirlist(device_info.service, path, recursive=recursive)
 
 
 @cli.command("device-information")
 @async_command
 async def device_information(service_provider: ServiceProviderDep) -> None:
     """Print system information"""
-    async with DvtProvider(service_provider) as dvt:
-        device_info = DeviceInfo(dvt)
+    async with DvtProvider(service_provider) as dvt, DeviceInfo(dvt) as device_info:
         info = {
             "hardware": await device_info.hardware_information(),
             "network": await device_info.network_information(),
@@ -453,8 +452,7 @@ async def xcuitest(
 @async_command
 async def dvt_trace_codes(service_provider: ServiceProviderDep) -> None:
     """Print KDebug trace codes."""
-    async with DvtProvider(service_provider) as dvt:
-        device_info = DeviceInfo(dvt)
+    async with DvtProvider(service_provider) as dvt, DeviceInfo(dvt) as device_info:
         print_json({hex(k): v for k, v in (await device_info.trace_codes()).items()})
 
 
@@ -462,8 +460,7 @@ async def dvt_trace_codes(service_provider: ServiceProviderDep) -> None:
 @async_command
 async def dvt_name_for_uid(service_provider: ServiceProviderDep, uid: int) -> None:
     """Print the assiciated username for the given uid."""
-    async with DvtProvider(service_provider) as dvt:
-        device_info = DeviceInfo(dvt)
+    async with DvtProvider(service_provider) as dvt, DeviceInfo(dvt) as device_info:
         print(await device_info.name_for_uid(uid))
 
 
@@ -471,8 +468,7 @@ async def dvt_name_for_uid(service_provider: ServiceProviderDep, uid: int) -> No
 @async_command
 async def dvt_name_for_gid(service_provider: ServiceProviderDep, gid: int) -> None:
     """Print the assiciated group name for the given gid."""
-    async with DvtProvider(service_provider) as dvt:
-        device_info = DeviceInfo(dvt)
+    async with DvtProvider(service_provider) as dvt, DeviceInfo(dvt) as device_info:
         print(await device_info.name_for_gid(gid))
 
 
